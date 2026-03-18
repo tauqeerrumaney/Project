@@ -1,12 +1,16 @@
-# oTree (Django ORM)
+# oTree stack
 otree==5.10.0
-Django==4.2.16
 
-# DB/runtime helpers
-psycopg2-binary==2.9.9
-gunicorn==21.2.0
+# Server/runtime
 whitenoise==6.7.0
 python-dotenv==1.0.1
 
+# DB
+psycopg2-binary==2.9.9
+
+# Data / sheets
+numpy==1.26.4
+pandas==2.1.4
+openpyxl==3.1.5
 gspread==6.1.2
 google-auth==2.34.0

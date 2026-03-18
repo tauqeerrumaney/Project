@@ -1,74 +1,125 @@
 from os import environ
 
+
 def as_bool(v, default=False):
     if v is None:
         return default
-    return v in ('1', 'true', 'True', True)
+    return v in ("1", "true", "True", True)
+
+
+INSTRUCTIONS_URL = "https://docs.google.com/document/d/1PBL73XGMwln6uTFBXW2UaGoeb5-pM5OClvXXUe6YCP0/preview"
+INTRODUCTION_URL = "https://docs.google.com/document/d/1frtr8zzT1KehperGjaNJNKgEh9fpZvHc0OvPuUgPblo/preview"
+
 
 SESSION_CONFIGS = [
     dict(
-        name='full_study',
-        display_name='Full study',
-        app_sequence=['start', 'demographics', 'img_desc'],
-        num_demo_participants=4,
-        filename=environ.get('BENZ_SPREADSHEET_NAME', 'benz'),
-        instructions_path=environ.get('BENZ_INSTRUCTIONS_URL', ''),
-        expand_slots=as_bool(environ.get('BENZ_EXPAND_SLOTS', '1'), True),
-        prolific_enabled=as_bool(environ.get('BENZ_PROLIFIC_ENABLED', '1'), True),
+        name="full_study",
+        display_name="Full study",
+        app_sequence=["start", "img_desc"],
+        num_demo_participants=8,
+        filename="https://docs.google.com/spreadsheets/d/1IQiLSLk9LFt8EK9fr5l_Z8sx8-p9VotoHmlXP5s7mRs/edit?gid=1525060338#gid=1525060338",
+        completion_code="COIC1LIY",
+
+        for_prolific=True,
+        expand_slots=True,
+
+        cohort_size=4,
+
+        instructions_url=INSTRUCTIONS_URL,
+        introduction_url=INTRODUCTION_URL,
     ),
     dict(
-        name='main_study_only',
-        display_name='Main study only',
-        app_sequence=['start'],
+        name="practice_pages",
+        display_name="Practice pages only",
+        app_sequence=["start"],
         num_demo_participants=4,
-        filename=environ.get('BENZ_SPREADSHEET_NAME', 'benz'),
-        instructions_path=environ.get('BENZ_INSTRUCTIONS_URL', ''),
+        filename="disjunctionExpTest8EN_1.xlsx",
+        for_prolific=False,
         expand_slots=False,
-        prolific_enabled=True,
-    ),
-    dict(
-        name='practice_pages',
-        display_name='Practice pages',
-        app_sequence=['start'],
-        num_demo_participants=2,
-        filename=environ.get('BENZ_SPREADSHEET_NAME', 'benz'),
-        instructions_path=environ.get('BENZ_INSTRUCTIONS_URL', ''),
-        expand_slots=False,
-        prolific_enabled=False,
+
+        instructions_url=INSTRUCTIONS_URL,
+        introduction_url=INTRODUCTION_URL,
     ),
 ]
+
 
 SESSION_CONFIG_DEFAULTS = dict(
     real_world_currency_per_point=1.00,
     participation_fee=0.00,
-    doc="",
 )
 
-PARTICIPANT_FIELDS = ['prolific_pid', 'study_id', 'prolific_session_id']
-SESSION_FIELDS = ['sheet_settings', 'sheet_data', 'practices', 'sheet_meta']
 
-LANGUAGE_CODE = 'en'
-REAL_WORLD_CURRENCY_CODE = 'USD'
+PARTICIPANT_FIELDS = [
+    "prolific_id",
+    "study_id",
+    "prolific_session_id",
+    "full_study_completed",
+
+    # webhook will set this:
+    "prolific_submission_status",
+]
+
+
+SESSION_FIELDS = [
+    # from start/__init__.py
+    "practice_settings",
+    "sheet_settings",
+    "interpreter_title",
+    "interpreter_choices",
+    "suffixes",
+    "allowed_values",
+    "EndOfIntroText",
+
+    # from img_desc
+    "active_batch",
+    "user_data",
+    "num_rounds",
+    "practice_pages",
+    "user_settings",
+    "s3path",
+    "extension",
+    "prefix",
+    "allowed_regex",
+    "caseflag",
+    "interpreter_input_type",
+    "interpreter_input_choices",
+    "max_users",
+    "batch_size",
+
+    # keep these accessible in session.vars
+    "cohort_size",
+    "instructions_url",
+    "introduction_url",
+]
+
+
+LANGUAGE_CODE = "en"
+REAL_WORLD_CURRENCY_CODE = "USD"
 USE_POINTS = True
 
-ADMIN_USERNAME = environ.get('OTREE_ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = environ.get('OTREE_ADMIN_PASSWORD', 'changeme')
-SECRET_KEY = environ.get('OTREE_SECRET_KEY', 'dev-secret')
+ADMIN_USERNAME = environ.get("OTREE_ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = environ.get("OTREE_ADMIN_PASSWORD", "admin")
+SECRET_KEY = environ.get("OTREE_SECRET_KEY", "dev-secret")
 
-OTREE_PRODUCTION = as_bool(environ.get('OTREE_PRODUCTION', '0'), False)
+OTREE_PRODUCTION = as_bool(environ.get("OTREE_PRODUCTION", "0"), False)
 
-SHEET_TAB_SETTINGS = environ.get('BENZ_SHEET_TAB_SETTINGS', 'Settings')
-SHEET_TAB_DATA = environ.get('BENZ_SHEET_TAB_DATA', 'Data')
-SHEET_TAB_PREFIX_PRACTICE = environ.get('BENZ_SHEET_TAB_PREFIX_PRACTICE', 'Practice')
+# ------------------------------------------------------------
+# Django routing (webhook)
+# ------------------------------------------------------------
+ROOT_URLCONF = "urls"
 
-SHEET_COLS = {
-    'image_url': environ.get('BENZ_COL_IMAGE_URL', 's3path'),
-    'filename': environ.get('BENZ_COL_FILENAME', 'filename'),
-    'extension': environ.get('BENZ_COL_EXTENSION', 'extension'),
-    'prompt': environ.get('BENZ_COL_PROMPT', 'prompt'),
-    'description': environ.get('BENZ_COL_DESCRIPTION', 'description'),
-    'practice': environ.get('BENZ_COL_PRACTICE', 'is_practice'),
-}
+# ------------------------------------------------------------
+# Heroku / deployment
+# ------------------------------------------------------------
+# Recommended: set ALLOWED_HOSTS in Heroku config vars, e.g.:
+# ALLOWED_HOSTS=your-app.herokuapp.com,.herokuapp.com
+ALLOWED_HOSTS = [h.strip() for h in environ.get("ALLOWED_HOSTS", ".herokuapp.com").split(",") if h.strip()]
 
-DEMO_PAGE_INTRO_HTML = ""
-INSTALLED_APPS = ['otree']
+# Optional, only needed if you enforce CSRF/origin checks somewhere else.
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
+
+INSTALLED_APPS = ["otree"]

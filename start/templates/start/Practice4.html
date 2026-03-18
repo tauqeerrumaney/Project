@@ -1,162 +1,205 @@
-{% extends "global/Page.html" %}
+{% extends "otree/Page.html" %}
 {% load otree static %}
 
-{% block title %}
-
-{% endblock %}
-
 {% block content %}
+
 <script>
-    window.suffixes = {{ session.vars.suffixes | json }}
-    window.allowedValues = {{ session.vars.allowed_values | json }}
+  window.suffixes      = {{ session.vars.suffixes|json }};
+  window.allowedValues = {{ session.vars.allowed_values|json }};
+  window.page_settings = {{ settings|json }};
+  window.rightAnswers  = {{ settings.right_answer|json }} || [];
 </script>
-
-
 
 <style>
-    .input-group {
-        max-width: fit-content;
-    }
+  [v-cloak] { display: none; }
+  .input-group { max-width: fit-content; }
+  .input-kids  { min-width: 200px; }
 
-    .input-kids {
-        min-width: 200px;
-    }
+  .placeholder-img {
+      width: 600px;
+      height: 400px;
+      background-color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      margin: 0 auto;
+  }
 
-    .input-marbles {
-        min-width: 200px;
-    }
+  .clean-row {
+      border: none;
+      padding: 5px 0;
+      margin-bottom: 10px;
+  }
 </style>
+
 <div id="app" v-cloak>
 
-    {% verbatim %}
-    <h1>{{title}}</h1>
-    <div v-html="main_text"></div>
-    <div class="text-center">
-        <div class="image">
-            <img :src="image_path" alt="" :width="500">
+  <h1>[[ title ]]</h1>
+  <div v-html="main_text"></div>
+
+  <div class="text-center my-3">
+    <img v-if="image_path" :src="image_path" :alt="title" style="max-width: 600px; width: 100%; height:auto;">
+    <div v-else class="placeholder-img">(No Image Available)</div>
+  </div>
+
+  <div class="text-center">
+    <div v-for="(item, itemIndex) in items" :key="itemIndex" class="clean-row d-flex justify-content-center">
+      <div class="input-group mb-3 d-flex align-items-baseline" style="flex-flow: nowrap;">
+
+        <div v-for="(field, fieldIndex) in item.fields"
+             :key="fieldIndex"
+             class="align-items-baseline input-group mb-3 d-flex flex-nowrap">
+
+          <input
+            type="text"
+            v-model.trim="field.value"
+            class="form-control input-kids"
+            :placeholder="`...`"
+            autocomplete="off"
+            @input="hideError"
+          >
+          <span class="input-group-text mx-2 text-nowrap" style="background:none; border:none; font-weight:bold;">
+            [[ field.suffix ]]
+          </span>
         </div>
-    </div>
-    <div class="text-center">
-        <ul class="list-group list-group-flush my-3">
-            <li class="list-group-item d-flex" v-for="(item, itemIndex) in items" :key="itemIndex"
-                style="    flex-flow: nowrap">
-                <div class="input-group mb-3 d-flex align-items-baseline" style="    flex-flow: nowrap">
-                    <div v-for="(field, fieldIndex) in item.fields" :key="fieldIndex"
-                        class="align-items-baseline input-group mb-3 d-flex flex-nowrap">
-                        <input type="text" v-model.trim="field.value" class="form-control input-kids"
-                            :placeholder="`Field ${fieldIndex+1}`" required @input="hideError">
-                        <span class="input-group-tex mx-3 text-nowrap ">{{ field.suffix }}</span>
-                    </div>
-                    <button @click="addItem" style="flex-basis: 75px;" type="button" class="btn btn-success"
-                        :disabled="items.length === maxItems">+</button>
-                    <button @click="removeItem(itemIndex)" type="button" :disabled="items.length === minItems"
-                        class="btn btn-danger" style="flex-basis: 75px;">-</button>
 
-                </div>
-            </li>
-        </ul>
-        <p v-if="error" class="alert alert-danger">Error: please, check your answers!</p>
+        <button @click.prevent="addItem" type="button" class="btn btn-outline-secondary ml-2" style="flex-basis: 40px;" :disabled="items.length === maxItems">+</button>
+        <button @click.prevent="removeItem(itemIndex)" type="button" class="btn btn-outline-danger ml-1" style="flex-basis: 40px;" :disabled="items.length === minItems">-</button>
+      </div>
     </div>
-    <button :disabled="!isFormComplete" class="btn btn-primary" type="button" @click="validate">Next</button>
 
-    {% endverbatim %}
+    <p v-if="error" class="alert alert-danger mt-3">
+      [[ errorMessage ]]
+    </p>
+  </div>
+
+  <!-- ✅ IMPORTANT: send to oTree -->
+  <input type="hidden" name="practice_response" :value="jsonPayload">
+
+  <div class="text-center mt-4">
+    <button :disabled="!isFormFilled" class="btn btn-primary btn-lg" type="button" @click="validateAndSubmit">
+      Next
+    </button>
+  </div>
+
 </div>
+
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script>
+const app = Vue.createApp({
+  data() {
+    const s           = window.page_settings   || {};
+    const suffixes    = Array.isArray(window.suffixes)      ? window.suffixes      : [];
+    const allowedVals = Array.isArray(window.allowedValues) ? window.allowedValues : [];
+    const requiredRows = Number(s.required_rows) || (window.rightAnswers || []).length || 3;
 
-    const app = Vue.createApp({
-        data() {
-            let correct_answers_raw = js_vars.settings.right_answer;
-            let correct_answers = correct_answers_raw
-            console.debug('correct_answers', correct_answers);
-            let fields = window.suffixes.map((suffix, index) => ({
-                value: '',
-                suffix: suffix,
+    const cleanStr = (str) => String(str).toLowerCase().replace(/\s+/g, ' ').trim();
 
-            }));
-            return {
-                correct_answers,
-                maxItems: 5,
-                minItems: 1,
-                image_path: js_vars.settings.full_image_path,
-                title: js_vars.settings.title,
-                main_text: js_vars.settings.main_text,
-                suffixes: window.suffixes,
-                items: [{ fields: fields }],
-                error: false,
-                errorMessage: '',
-            }
-        },
-        computed: {
-            isFormFull() {
-                return this.items.every(item => {
-                    return item.fields.every(field => {
-                        return field.value !== null && field.value !== undefined && field.value !== '';
-                    });
-                });
-            },
-            isFormComplete() {
-                
-                return (this.isFormFull && this.items.length === this.correct_answers.length);
-            },
-            flattenValues() {
-                return this.items.map(item => item.fields.map(field => field.value));
-            }
-        },
+    // normalize correct answers
+    const correctAnswers = (window.rightAnswers || []).map(ans =>
+      ans.split(';').map(part => cleanStr(part)).join(';')
+    );
 
-        methods: {
-            validate() {
-                if (!this.isValid()) {
-                    this.error = true;
-                    this.errorMessage = "Error";
-                } else {
-                    this.error = false;
-                    $('#form').submit()
-                }
-            },
-            isValid() {
+    const createRow = () => ({
+      fields: suffixes.map((suffix, i) => ({
+        value: '',
+        suffix,
+        allowedLower: Array.isArray(allowedVals[i]) ? allowedVals[i].map(v => cleanStr(v)) : []
+      }))
+    });
 
-                let sortedUserAnswer = [...this.flattenValues].sort();
-                let sortedRightAnswer = [...this.correct_answers].sort();
-                sortedUserAnswer = sortedUserAnswer.map(subArray => subArray.map(str => str.replace(/\s+/g, ' ')));
+    let image_path = s.full_image_path || '';
+    return {
+      title: s.title || 'Practice Task',
+      main_text: s.main_text || '',
+      image_path,
+      allowedValues: allowedVals,
+      suffixes,
+      requiredRows,
+      correctAnswers,
+      items: [createRow()],
+      maxItems: 5,
+      minItems: 1,
+      error: false,
+      errorMessage: '',
+      cleanStr,
+    };
+  },
 
-                console.debug(sortedRightAnswer)
-                console.debug(sortedUserAnswer)
+  computed: {
+    isFormFilled() {
+      return this.items.every(item =>
+        item.fields.every(f => f.value && f.value.trim() !== '')
+      );
+    },
+    jsonPayload() {
+      // ✅ what server expects for Practice 4/5 validation
+      return JSON.stringify(this.items.map(item => item.fields.map(f => f.value)));
+    }
+  },
 
-                // Then, compare the JSON stringified versions
-                let isCorrect = JSON.stringify(sortedUserAnswer) === JSON.stringify(sortedRightAnswer);
-                return isCorrect
-            },
-            addItem() {
-                if (this.items.length < this.maxItems) {
-                    let fields = window.suffixes.map((suffix, index) => ({
-                        value: '',
-                        suffix: suffix,
-                        allowedValues: window.allowedValues[index].map(item => item.toLowerCase())
-                    }));
-                    this.items.push({ fields: fields });
-                }
-            },
+  methods: {
+    validateAndSubmit() {
+      this.error = false;
+      this.errorMessage = '';
 
-            removeItem(index) {
-                if (this.items.length > 1) {
-                    this.items.splice(index, 1);
-                }
-            },
-            hideError() {
-                this.error = false;
-            }
-        },
-    })
-    app.mount('#app')
+      // enforce required rows (Practice4 should be 3)
+      if (this.items.length !== this.requiredRows) {
+        this.error = true;
+        this.errorMessage = `You need exactly ${this.requiredRows} sentences (rows). You currently have ${this.items.length}.`;
+        return;
+      }
+
+      // correct answer check
+      if (this.correctAnswers.length > 0) {
+        const userStrings = this.items.map(item =>
+          item.fields.map(f => this.cleanStr(f.value)).join(';')
+        );
+
+        const userSorted = [...userStrings].sort();
+        const correctSorted = [...this.correctAnswers].sort();
+
+        for (let i = 0; i < correctSorted.length; i++) {
+          if (userSorted[i] !== correctSorted[i]) {
+            this.error = true;
+            this.errorMessage = "Some answers are incorrect. Please check spelling and values.";
+            return;
+          }
+        }
+      }
+
+      const outerForm = document.querySelector('form');
+      if (outerForm) outerForm.submit();
+    },
+
+    addItem() {
+      if (this.items.length >= this.maxItems) return;
+      const createRow = () => ({
+        fields: this.suffixes.map((suffix, i) => ({
+          value: '',
+          suffix,
+          allowedLower: Array.isArray(this.allowedValues[i]) ? this.allowedValues[i].map(v => this.cleanStr(v)) : []
+        }))
+      });
+      this.items.push(createRow());
+    },
+
+    removeItem(index) {
+      if (this.items.length > this.minItems) {
+        this.items.splice(index, 1);
+      }
+    },
+
+    hideError() {
+      this.error = false;
+      this.errorMessage = '';
+    }
+  }
+});
+
+app.config.compilerOptions.delimiters = ['[[', ']]'];
+app.mount('#app');
 </script>
-
-
-
-
-
-
-
-
 
 {% endblock %}

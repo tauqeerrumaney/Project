@@ -1,0 +1,15 @@
+{% extends "global/Page.html" %}
+
+{% block title %}{% endblock %}
+
+{% block content %}
+  <div style="display:none;">Loading…</div>
+
+  <script>
+    // global/Page.html already defines <form id="form">...</form>
+    window.addEventListener('load', function () {
+      const f = document.getElementById('form');
+      if (f) f.submit();
+    });
+  </script>
+{% endblock %}

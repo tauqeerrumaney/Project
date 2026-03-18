@@ -1,190 +1,114 @@
-{% extends "global/Page.html" %}
+{% extends "otree/Page.html" %}
 {% load otree static %}
 
-{% block title %}
-
-{% endblock %}
-
 {% block content %}
-
 <style>
-    .input-group {
-        max-width: 100%;
-    }
-
-    .input-kids {
-        min-width: 200px;
-    }
-
-    [v-cloak] {
-        display: none
-    }
-
-    .error {
-        border: 1px solid red;
-        border-radius: 5px !important;
-    }
+  [v-cloak] { display: none; }
+  .input-group { max-width: fit-content; }
+  .input-kids  { min-width: 200px; }
+  .clean-row { border: none; padding: 5px 0; margin-bottom: 10px; }
+  .vocab-box { background-color: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+  .image-box { width: 100%; max-width: 600px; height: auto; min-height: 200px; background-color: #eee; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
 </style>
-<div id="app">
-    {% verbatim %}
 
-    <h1>{{title}}</h1>
-    <div v-html="main_text"></div>
+<script>
+  window.props = {
+    settings: {{ settings|json }},
+    allowedValues: {{ allowed_values|json }},
+    suffixes: {{ suffixes|json }},
+    regexStr: {{ js_regex|safe }}
+  };
+</script>
 
-    <div class="text-center">
-        <div class="image text-center my-3 d-flex justify-content-center">
-            <div style="width: 500px; height: 300px;  background-color: lightblue; border-radius: 10px;"></div>
-        </div>
+<div id="app" v-cloak>
+  <h2 class="text-center my-3">[[ props.settings.title ]]</h2>
+  <div v-html="props.settings.main_text"></div>
+
+  <div class="text-center my-4">
+    <img v-if="props.settings.full_image_path" :src="props.settings.full_image_path" style="max-width: 100%; max-height: 400px; border: 1px solid #ddd;">
+    <div v-else class="image-box">No Image</div>
+  </div>
+
+  <div class="vocab-box text-center">
+    <h5>Allowed Vocabulary</h5>
+    <div class="row">
+      <div class="col-md-6" v-if="props.allowedValues[0]">
+        <div v-for="v in props.allowedValues[0]">[[ v ]]</div>
+      </div>
+      <div class="col-md-6" v-if="props.allowedValues[1]">
+        <div v-for="v in props.allowedValues[1]">[[ v ]]</div>
+      </div>
     </div>
-    <div class="text-center">
-        <div class="text-center">
-            <div class="row my-3">
-                <div class=" col mb-3" v-for="(allowedList,index) in allowedValues" :key="index">
-                    <div v-if="allowedList.length">
-                        <p class="font-weight-bold">Text field {{index+1}}:</p>
-                        <ul class="list-group">
-                            <li class="list-group-item" v-for="value in allowedList" :key="value">{{ value }}</li>
-                        </ul>
-                    </div>
-                </div>
+  </div>
 
-            </div>
-
-
-            <ul class="list-group list-group-flush my-3" v-cloak>
-                <li class="list-group-item d-flex" v-for="(item, itemIndex) in items" :key="itemIndex"
-                    style="    flex-flow: nowrap">
-                    <div class="input-group mb-3 d-flex align-items-baseline" style="    flex-flow: nowrap">
-                        <div v-for="(field, fieldIndex) in item.fields" :key="fieldIndex"
-                            class="input-group mb-3 d-flex align-items-baseline">
-                            <input type="text" v-model.trim="field.value" class="form-control input-kids"
-                                :class="{ error: isError(field) }" :placeholder="`Field ${fieldIndex+1}`" required
-                                @input="hideError">
-                            <span class="input-group-tex mx-3">{{ field.suffix }}</span>
-                        </div>
-                        <button @click="addItem" style="flex-basis: 75px;" type="button" class="btn btn-success"
-                            :disabled="items.length === maxItems">+</button>
-                        <button @click="removeItem(itemIndex)" type="button" :disabled="items.length === minItems"
-                            class="btn btn-danger" style="flex-basis: 75px;">-</button>
-
-                    </div>
-                </li>
-            </ul>
-
+  <div class="text-center mt-4">
+    <div v-for="(item, itemIndex) in items" :key="itemIndex" class="clean-row d-flex justify-content-center">
+      <div class="input-group mb-3 d-flex align-items-baseline flex-nowrap">
+        <div v-for="(field, fieldIndex) in item.fields" :key="fieldIndex" class="d-flex align-items-baseline">
+          <input type="text" v-model="field.value" class="form-control input-kids" placeholder="..." autocomplete="off" @input="errorMsg=''">
+          <span class="mx-2 font-weight-bold">[[ field.suffix ]]</span>
         </div>
-
-
+        <button class="btn btn-outline-secondary ml-2" @click.prevent="addItem" :disabled="items.length >= 5">+</button>
+        <button class="btn btn-outline-danger ml-1" @click.prevent="removeItem(itemIndex)" :disabled="items.length <= 1">-</button>
+      </div>
     </div>
-    <p v-if="sentences_left" class="alert alert-info">Make {{sentences_left}}.</p>
-    <p v-if="error" class="alert alert-danger" v-html="errorMessage"></p>
-    <button :disabled="!isFormComplete" @click="validate" class="btn btn-primary mb-3" type="button">Next</button>
+  </div>
 
-    {% endverbatim %}
+  <input type="hidden" name="practice_response" :value="jsonPayload">
+  
+  <p v-if="errorMsg" class="alert alert-danger text-center mt-3" style="max-width: 600px; margin: 0 auto;">[[ errorMsg ]]</p>
+
+  <div class="text-center mt-5">
+    <button class="btn btn-primary btn-lg" @click.prevent="check">Next</button>
+  </div>
 </div>
+
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<script src="{% static 'global/js/input_functions.js' %}"></script>
 <script>
-    window.suffixes = {{ session.vars.suffixes | json }}
-    window.allowedValues = {{ session.vars.allowed_values | json }}
-    window.regex = {{ session.vars.allowed_regex | json }};
-    window.caseflag = {{ session.vars.caseflag | json }};
-</script>
-<script>
-    const app = Vue.createApp({
-        data() {
+const app = Vue.createApp({
+  data() {
+    const p = window.props || {};
+    let suffixes = p.suffixes || ["", ""];
+    const regexList = (p.regexStr || []).map(r => new RegExp(`^${r}$`, 'i'));
 
-
-            return {
-                suffixes: window.suffixes,
-                minItems: 1,
-                maxItems: 5,
-                requiredNumSentences: 5,
-                allowedValues: window.allowedValues,
-                image_path: js_vars.settings.full_image_path,
-                title: js_vars.settings.title,
-                main_text: js_vars.settings.main_text,
-                items: [{ fields: getFields() }],
-                error: false,
-                contentError: false,
-                errorMessage: '',
-                validated: false
-            }
-        },
-        methods: {
-            addItem: addItem,
-            removeItem(index) {
-                if (this.items.length > this.minItems) {
-                    this.items.splice(index, 1);
-                }
-            },
-            validate() {
-
-                if (!this.isValid()) {
-                    this.error = true;
-                    this.contentError = true;
-                    this.errorMessage = this.getErrMessage
-                    this.validated = true;
-                } else {
-                    this.error = false;
-                    this.contentError = false;
-                    this.validated = true;
-                    this.error = false;
-                    $('#form').submit()
-                }
-            },
-            isValid() {
-                return this.items.every((item) => {
-                    return item.fields.every((field) => {
-
-                        return this.checkSingleField(field)
-                    })
-                });
-            },
-            hideError() {
-                this.error = false;
-                this.validated = false;
-            },
-            checkSingleField: checkSingleField,
-            isError(field) {
-                return this.validated && !this.checkSingleField(field);
-            }
-        },
-        computed: {
-            sentences_left() {
-                const remained = this.requiredNumSentences - this.items.length
-                if (remained <= 0) return false
-                const ending = remained === 1 ? '' : 's'
-                return `${remained} more sentence${ending}`
-            },
-            isFormComplete() {
-                return this.items.length >= this.requiredNumSentences && this.items.every(item => item.fields.every(field => field.value !== ''));
-            },
-            getErrMessage() {
-                let errmsg = ''
-                if (this.contentError) {
-                    errmsg = 'Error. The text is not in the allowed list of values. <br> ';
-                }
-                const lengthErrMsg = this.items.length !== this.requiredNumSentences ? `Please produce ${this.requiredNumSentences} sentences.<br>` : '';
-                errmsg = lengthErrMsg + errmsg;
-                this.suffixes.forEach((suffix, index) => {
-                    allVal = window.allowedValues[index]
-                    if (allVal.length > 0) {
-                        errmsg += `For Field ${index + 1}, the allowed values are: <b>${allVal.join(", ")}</b>. <br>`;
-                    }
-                });
-                return errmsg
-            }
+    return {
+      props: p,
+      suffixes,
+      regexList,
+      items: [{ fields: suffixes.map(s => ({ value: "", suffix: s })) }],
+      requiredRows: 5, // Practice 7 requires 5 sentences
+      errorMsg: ""
+    };
+  },
+  computed: {
+    jsonPayload() { return JSON.stringify(this.items.map(i => i.fields.map(f => f.value))); }
+  },
+  methods: {
+    addItem() { if(this.items.length < 5) this.items.push({ fields: this.suffixes.map(s=>({value:"", suffix:s})) }); },
+    removeItem(i) { if(this.items.length > 1) this.items.splice(i, 1); },
+    check() {
+      this.errorMsg = "";
+      
+      if (this.items.length !== this.requiredRows) {
+        this.errorMsg = `You must produce exactly ${this.requiredRows} sentences.`;
+        return;
+      }
+      for (let i = 0; i < this.items.length; i++) {
+        const row = this.items[i];
+        for (let j = 0; j < row.fields.length; j++) {
+          const val = (row.fields[j].value || "").trim();
+          const reg = this.regexList[j];
+          if (reg && !reg.test(val)) {
+            this.errorMsg = `Sentence ${i+1}, Field ${j+1}: "${val}" is not valid. Please choose from the allowed vocabulary.`;
+            return; 
+          }
         }
-    })
-    app.mount('#app')
+      }
+      document.querySelector('form').submit();
+    }
+  }
+});
+app.config.compilerOptions.delimiters = ["[[", "]]"];
+app.mount("#app");
 </script>
-
-
-
-
-
-
-
-
-
 {% endblock %}

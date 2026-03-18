@@ -1,30 +1,170 @@
-{% extends "global/Page.html" %}
+{% extends "otree/Page.html" %}
 {% load otree static %}
 
-{% block title %}
- 
-{% endblock %}
-
 {% block content %}
+<style>
+    /* Hides the app until Vue is ready to prevent "flicker" */
+    [v-cloak] { display: none; }
+    
+    .form-group { 
+        margin-bottom: 1.5rem; 
+        text-align: left; 
+        max-width: 600px; 
+        margin-left: auto; 
+        margin-right: auto; 
+    }
+    label { 
+        font-weight: bold; 
+        margin-bottom: 0.5rem; 
+        display: block; 
+    }
+    .form-text {
+        font-size: 0.9em;
+        color: #666;
+    }
+</style>
 
-<h2 style="text-align:right">
-    <table style="width:800px">
-        <tr>
-            <td></td>
-            <td></td>
-            <td><img src="{% static 'global/img/zas.png' %}" width="110" alt="ZAS"></td>
-        </tr>
-    </table>
-</h2>
+<div id="app" v-cloak class="text-center">
+    
+    <p class="lead mb-4">We ask you to provide us with the following information, which will be treated confidentially and stored anonymously.</p>
 
+    <div class="form-group">
+        <label>Gender:</label>
+        <select v-model="form.gender" class="form-control">
+            <option disabled value="">Please select...</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="diverse">Diverse</option>
+            <option value="prefer_not_to_say">I prefer not to say</option>
+        </select>
+    </div>
 
-    <script src="https://unpkg.com/survey-jquery@1.9.115/survey.jquery.min.js"></script>
-    <script src="https://unpkg.com/survey-jquery@1.9.115/themes/index.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/survey-jquery@1.9.115/defaultV2.min.css" />
-    <div id="surveyElement" ></div>
-    <input type="hidden" id="survey_data" value="" name="survey_data">
-    <script src="{% static 'global/js/demographics.js' %}"></script>
+    <div class="form-group">
+        <label>Age (years):</label>
+        <input type="number" v-model="form.age" class="form-control" min="18" max="99" placeholder="e.g., 25">
+    </div>
 
+    <div class="form-group">
+        <label>Handedness:</label>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" id="right" value="right-handed" v-model="form.handedness">
+            <label class="form-check-label" for="right">Right-handed</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" id="left" value="left-handed" v-model="form.handedness">
+            <label class="form-check-label" for="left">Left-handed</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" id="ambi" value="ambidextrous" v-model="form.handedness">
+            <label class="form-check-label" for="ambi">Ambidextrous/Two-handed</label>
+        </div>
+    </div>
 
+    <div class="form-group">
+        <label>Grew up in country:</label>
+        <select v-model="form.grewUpInCountry" class="form-control">
+            <option disabled value="">Select a country...</option>
+            <option value="United States">United States</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Germany">Germany</option>
+            <option value="Canada">Canada</option>
+            <option value="Australia">Australia</option>
+            <option value="India">India</option>
+            <option value="China">China</option>
+            <option value="Other">Other</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Currently living in country:</label>
+        <select v-model="form.currentlyLivingInCountry" class="form-control">
+            <option disabled value="">Select a country...</option>
+            <option value="United States">United States</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Germany">Germany</option>
+            <option value="Canada">Canada</option>
+            <option value="Australia">Australia</option>
+            <option value="India">India</option>
+            <option value="China">China</option>
+            <option value="Other">Other</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Native language:</label>
+        <select v-model="form.nativeLanguage" class="form-control">
+            <option disabled value="">Please select...</option>
+            <option value="English">English</option>
+            <option value="other">Other</option>
+        </select>
+        <input v-if="form.nativeLanguage === 'other'" type="text" v-model="form.nativeLanguageOther" class="form-control mt-2" placeholder="Please specify...">
+    </div>
+
+    <div class="form-group">
+        <label>Completed highest level of education:</label>
+        <select v-model="form.education" class="form-control">
+            <option disabled value="">Please select...</option>
+            <option value="Less than high school">Less than a high school diploma</option>
+            <option value="High school">High school degree or equivalent (e.g. GED)</option>
+            <option value="Some college">Some college, no degree</option>
+            <option value="Associate degree">Associate degree (e.g. AA, AS)</option>
+            <option value="Bachelor's degree">Bachelor's degree (e.g. BA, BS)</option>
+            <option value="Master's degree">Master's degree (e.g. MA, MS, MEd)</option>
+            <option value="Doctorate">Doctorate or professional degree (e.g. MD, DDS, PhD)</option>
+        </select>
+    </div>
+
+    <input type="hidden" name="survey_data" :value="jsonPayload">
+
+    <div class="mt-5">
+        <button class="btn btn-primary btn-lg" :disabled="!isValid">Next</button>
+    </div>
+
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script>
+    const app = Vue.createApp({
+        data() {
+            return {
+                form: {
+                    gender: '',
+                    age: '',
+                    handedness: '',
+                    grewUpInCountry: '',
+                    currentlyLivingInCountry: '',
+                    nativeLanguage: '',
+                    nativeLanguageOther: '', // Helper for "other" text input
+                    education: ''
+                }
+            };
+        },
+        computed: {
+            // Packs all data into a JSON string for the 'survey_data' field
+            jsonPayload() {
+                // We clone the form to avoid modifying the actual data
+                let payload = { ...this.form };
+                
+                // If they typed a custom language, save that as the main language answer
+                if (this.form.nativeLanguage === 'other' && this.form.nativeLanguageOther) {
+                    payload.nativeLanguage = this.form.nativeLanguageOther;
+                }
+                
+                return JSON.stringify(payload);
+            },
+            // Validation to ensure required fields are not empty
+            isValid() {
+                return this.form.gender && 
+                       this.form.age && 
+                       this.form.handedness && 
+                       this.form.grewUpInCountry && 
+                       this.form.currentlyLivingInCountry && 
+                       this.form.nativeLanguage && 
+                       this.form.education;
+            }
+        }
+    });
+    app.mount('#app');
+</script>
 
 {% endblock %}

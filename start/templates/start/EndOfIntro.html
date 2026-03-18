@@ -1,0 +1,31 @@
+{% extends "otree/Page.html" %}
+{% load otree static %}
+
+{% block content %}
+
+<div class="container">
+
+    {# Text loaded from the Excel "settings" sheet -> EndOfIntroText #}
+    {% if session.vars.EndOfIntroText %}
+        <div class="mb-4">
+            {{ session.vars.EndOfIntroText|safe }}
+        </div>
+    {% else %}
+        <p class="mb-4">
+            You have completed the practice part.  
+            On the next pages, you will work on the real task.
+            Please read the instructions carefully and answer as accurately as you can.
+        </p>
+    {% endif %}
+
+    <p class="text-muted">
+        When you are ready, click <strong>Next</strong> to begin the main experiment.
+    </p>
+
+    <div class="text-center mt-5">
+        {% next_button %}
+    </div>
+
+</div>
+
+{% endblock %}
